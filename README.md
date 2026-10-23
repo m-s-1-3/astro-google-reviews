@@ -1,16 +1,16 @@
 # @ms/astro-google-reviews
 
-Google-Bewertung und Rezensionen für Astro-Seiten. **Eine** Abfrage und
-**ein** Baustein für alle Projekte — das Gegenstück zu `@ms/astro-gallery`.
+Google rating and reviews for Astro sites. **One** query and **one** component
+for every project — the counterpart to `@ms/astro-gallery`.
 
-Zwei Teile, die man einzeln benutzen kann:
+Two parts that can be used on their own:
 
-- **`fetch`** fragt die Places API (New) nach einem Ort: Durchschnitt, Anzahl
-  und die Rezensionen, die Google herausgibt.
-- **`Reviews.astro`** stellt das dar: Note mit Sternen, die Rezensionen als
-  Karten, der Hinweis auf Google.
+- **`fetch`** asks the Places API (New) about a place: average, count and the
+  reviews Google hands out.
+- **`Reviews.astro`** shows them: rating with stars, the reviews as cards, the
+  attribution to Google.
 
-## Einbinden
+## Installation
 
 ```
 npm i git+https://github.com/m-s-1-3/astro-google-reviews.git#v1.0.0
@@ -24,132 +24,136 @@ import { fetchPlaceReviews } from '@ms/astro-google-reviews/fetch';
 const place = await fetchPlaceReviews({
   placeId: import.meta.env.GOOGLE_PLACE_ID,
   apiKey: import.meta.env.GOOGLE_PLACES_API_KEY,
-  language: 'de',
+  language: 'en',
 });
 ---
-<Reviews place={place} locale="de-DE" labels={{
-  stars: '{rating} von 5 Sternen',
-  count: '{count} Bewertungen auf Google',
-  more: 'Auf Google ansehen',
-  source: 'Bewertungen von Google',
+<Reviews place={place} locale="en-GB" labels={{
+  stars: '{rating} out of 5 stars',
+  count: '{count} reviews on Google',
+  more: 'View on Google',
+  source: 'Reviews from Google',
 }} />
 ```
 
-**Über HTTPS, nicht über SSH, und das Repo öffentlich** — aus demselben Grund
-wie bei der Galerie: die Container bauen ohne Schlüssel und ohne Token.
-Geheim ist hier nichts; der Google-Schlüssel steht in keiner Datei des Pakets.
+The labels are the site's own texts, so a German site passes German ones
+(`'{rating} von 5 Sternen'`, `'Bewertungen von Google'`, …).
 
-Die Fassung steht am Tag (`#v1.0.0`), nicht an einem Zweig.
+**Over HTTPS, not SSH, and the repository public** — for the same reason as
+the gallery: the containers build without keys and without tokens. Nothing
+here is secret; the Google key is in no file of the package.
 
-## Was man von Google braucht
+The version is pinned to a tag (`#v1.0.0`), not a branch.
 
-| | woher |
+## What you need from Google
+
+| | Where from |
 |---|---|
 | **Place ID** (`ChIJ…`) | [Place ID Finder](https://developers.google.com/maps/documentation/places/web-service/place-id) |
-| **API-Schlüssel** | Google Cloud Console, »Places API (New)« aktivieren, den Schlüssel auf genau diese API beschränken |
+| **API key** | Google Cloud Console: enable "Places API (New)" and restrict the key to exactly that API |
 
-Beides gehört in `.env` bzw. in die Build-Variablen, **nie ins Repo**.
+Both belong in `.env` or the build variables, **never in the repository**.
 
-## Die Abfrage
+## The query
 
 ```ts
 fetchPlaceReviews({ placeId, apiKey, language?, minRating?, max?, textOnly?, endpoint?, timeoutMs?, fetch? })
 ```
 
-| Option | Vorgabe | wofür |
+| Option | Default | Purpose |
 |---|---|---|
-| `language` | `de` | Sprache der Texte und von »vor 3 Monaten« |
-| `minRating` | `1` | Rezensionen darunter weglassen |
-| `max` | `5` | höchstens so viele zeigen |
-| `textOnly` | `true` | Rezensionen ohne Text weglassen |
-| `endpoint` | Googles | anderer Ursprung derselben API: ein Proxy, oder ein Ersatz beim Testen |
-| `timeoutMs` | `10000` | danach aufgeben |
+| `language` | `de` | language of the texts and of "3 months ago" |
+| `minRating` | `1` | leave out reviews below this |
+| `max` | `5` | show at most this many |
+| `textOnly` | `true` | leave out reviews without text |
+| `endpoint` | Google's | another origin of the same API: a proxy, or a stand-in for tests |
+| `timeoutMs` | `10000` | give up after this |
 
-Zurück kommt `PlaceReviews`: `name`, `rating`, `total`, `url`, `writeUrl`
-(»Bewertung schreiben«) und `reviews`.
+It returns `PlaceReviews`: `name`, `rating`, `total`, `url`, `writeUrl`
+("write a review") and `reviews`.
 
-**Sie läuft dort, wo die Seite gebaut oder gerendert wird — nie im Browser.**
-Der Schlüssel reist in einem Header, nicht in der Adresse, und kommt in
-keiner ausgelieferten Datei vor.
+**It runs where the site is built or rendered — never in the browser.** The
+key travels in a header, not in the URL, and appears in no file that is
+served.
 
-**Fehler werden gemeldet, nicht verschluckt.** Ist Google nicht erreichbar
-oder lehnt ab, wirft die Abfrage `GoogleReviewsError` — mit Googles eigener
-Begründung (»API key not valid«, »Places API (New) has not been used in
-project …«), denn der nackte Status ist ein Rätsel. Ob der Build daran
-scheitern oder ohne Bewertungen weiterlaufen soll, entscheidet die Seite:
+**Errors are reported, not swallowed.** If Google cannot be reached or
+refuses, the query throws `GoogleReviewsError` — with Google's own reason
+("API key not valid", "Places API (New) has not been used in project …"),
+because the bare status is a riddle. Whether the build should fail on it or
+carry on without reviews is up to the site:
 
 ```ts
 try { return await fetchPlaceReviews({ … }); }
 catch (error) { console.warn(String(error)); return null; }
 ```
 
-## Drei Dinge, die hier absichtlich so sind
+## Three things that are deliberate
 
-**Der Durchschnitt wird nie angefasst.** `minRating` und `max` kürzen die
-Liste, nicht die Note. `rating` und `total` sind Googles Zahlen über **alle**
-Rezensionen. Eine Note, die nur die gezeigten Karten mittelt, wäre eine
-andere Zahl unter Googles Namen.
+**The average is never touched.** `minRating` and `max` shorten the list, not
+the rating. `rating` and `total` are Google's figures over **all** reviews. A
+rating that averaged only the cards shown would be a different number under
+Google's name.
 
-**Fotos der Verfasser sind aus.** Die Bilder liefert Google; sie zu laden
-verrät Google, wer die Seite besucht, und braucht auf einer deutschen Seite
-eine Einwilligung. Ohne `photos` bekommt jede Person einen Kreis mit ihrem
-Anfangsbuchstaben, und die Seite stellt **keine einzige Anfrage an Dritte**.
-Wer die Fotos will und die Einwilligung geklärt hat: `<Reviews photos … />`.
+**Reviewers' photos are off.** Google serves the images; loading them tells
+Google who visits the page and, on a German site, needs consent. Without
+`photos` every person gets a circle with their initial, and the page makes
+**not a single request to third parties**. If you want the photos and have
+sorted out consent: `<Reviews photos … />`.
 
-**Höchstens fünf Rezensionen.** Mehr gibt die Places API nicht heraus, und
-welche fünf, bestimmt Google. Für »alle Rezensionen« gibt es den Link auf
-Google (`place.url`), nicht einen zweiten Weg an der API vorbei.
+**At most five reviews.** The Places API hands out no more, and Google decides
+which five. For "all reviews" there is the link to Google (`place.url`), not a
+second way around the API.
 
-## Aussehen
+## Styling
 
-Alles hängt an CSS-Variablen. Die Vorgaben stehen in den `var()`-Rückfällen,
-nicht auf `.gr` — man kann sie deshalb auf `.gr` selbst **oder auf einem
-Element darum herum** setzen:
+Everything hangs on CSS variables. The defaults sit in the `var()` fallbacks,
+not on `.gr` — so you can set them on `.gr` itself **or on any element around
+it**:
 
-| Variable | Vorgabe | wofür |
+| Variable | Default | Purpose |
 |---|---|---|
-| `--gr-accent` | `#1a73e8` | Links, Kreis mit dem Anfangsbuchstaben |
-| `--gr-star` | `#f5a623` | gefüllte Sterne |
-| `--gr-star-off` | `rgb(0 0 0 / .14)` | leere Sterne |
-| `--gr-card` | `#fff` | Grund der Karten |
-| `--gr-card-border` | `1px solid rgb(0 0 0 / .08)` | Rahmen der Karten |
-| `--gr-card-shadow` | `none` | Schatten der Karten |
-| `--gr-radius` | `1rem` | Ecken |
-| `--gr-gap` | `1.5rem` | Abstände |
-| `--gr-card-min` | `18rem` | Mindestbreite einer Karte, bevor umgebrochen wird |
-| `--gr-lines` | `7` | Zeilen, nach denen ein Text gekürzt wird |
-| `--gr-muted` | `rgb(0 0 0 / .6)` | Datum und Quellenhinweis |
+| `--gr-accent` | `#1a73e8` | links, circle with the initial |
+| `--gr-star` | `#f5a623` | filled stars |
+| `--gr-star-off` | `rgb(0 0 0 / .14)` | empty stars |
+| `--gr-card` | `#fff` | card background |
+| `--gr-card-border` | `1px solid rgb(0 0 0 / .08)` | card border |
+| `--gr-card-shadow` | `none` | card shadow |
+| `--gr-radius` | `1rem` | corners |
+| `--gr-gap` | `1.5rem` | spacing |
+| `--gr-card-min` | `18rem` | minimum card width before wrapping |
+| `--gr-lines` | `7` | lines after which a text is cut short |
+| `--gr-muted` | `rgb(0 0 0 / .6)` | date and attribution |
 
 ```css
-.meine-stimmen { --gr-accent: #3f7d1f; --gr-radius: 1.5rem; }
+.my-reviews { --gr-accent: #3f7d1f; --gr-radius: 1.5rem; }
 ```
 
-Schrift und Schriftgröße erbt der Baustein von der Seite. Er bewegt nichts
-und bringt kein Skript mit.
+The component inherits typeface and font size from the page. It animates
+nothing and ships no script.
 
-## Googles Bedingungen
+## Google's terms
 
-- Die Rezensionen müssen als Googles erkennbar sein — dafür ist
-  `labels.source` da (»Bewertungen von Google«). Nicht weglassen.
-- Texte unverändert zeigen. Kürzen per `--gr-lines` ist Darstellung, der
-  Link darunter führt zum ganzen Text.
-- Eine statisch gebaute Seite zeigt den Stand des letzten Builds. Wer
-  aktuelle Bewertungen will, baut regelmäßig neu (ein nächtlicher Build
-  reicht); Google erlaubt nicht, die Inhalte beliebig lange vorzuhalten.
+- The reviews must be recognisable as Google's — that is what `labels.source`
+  is for ("Reviews from Google"). Do not leave it out.
+- Show texts unchanged. Cutting them short via `--gr-lines` is presentation;
+  the link below leads to the full text.
+- A statically built site shows the state of its last build. If you want
+  current reviews, rebuild regularly (a nightly build is enough); Google does
+  not allow keeping the content for arbitrarily long.
 
-## Prüfen
+## Testing
 
 ```
 npm test
 ```
 
-Neun Fälle gegen einen nachgestellten `fetch`: Adresse und Header der
-Anfrage, die Abbildung auf `PlaceReviews`, die Filter, ein Ort ohne
-Rezensionen, Ablehnung und Ausfall. Die Namen in den Testdaten sind
-absichtlich Platzhalter (»Testperson A«) — nichts darin darf mit einer
-echten Rezension verwechselt werden können.
+Nine cases against a mocked `fetch`: URL and headers of the request, the
+mapping to `PlaceReviews`, the filters, a place without reviews, refusal and
+outage. The names in the test data are placeholders on purpose ("Testperson
+A") — nothing in them may be mistaken for a real review.
 
-## Benutzt von
+## Used by
 
-- `zap_ambroz` — beim Bauen abgefragt; ohne Schlüssel oder ohne Rezensionen
-  zeigt die Seite stattdessen Aussagen der Praxis
+- `zap_ambroz` — fetched while building; without a key or without reviews the
+  site shows statements from the practice instead
+- `lvm-stephan` — two places, fetched while building, with recorded reviews as
+  fallback
