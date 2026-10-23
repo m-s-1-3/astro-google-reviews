@@ -1,0 +1,115 @@
+---
+/** Google's rating of a place and the reviews that come with it.
+ *
+ *  Gets finished data (`PlaceReviews`) and renders it; where the data comes
+ *  from is `fetchPlaceReviews` or the site's own business.
+ *
+ *  NOTHING HERE TALKS TO GOOGLE FROM THE BROWSER unless `photos` is set. The
+ *  authors' pictures are served by Google, and loading them tells Google who
+ *  visits the page — on a German site that needs consent. Without `photos`
+ *  each author gets a circle with their initial, and the page makes no
+ *  third-party request at all.
+ *
+ *  No script, no motion: a row of cards and nothing to wait for.
+ */
+import type { PlaceReviews, ReviewsLabels } from './types.ts';
+
+interface Props {
+  place: PlaceReviews;
+  labels: ReviewsLabels;
+  /** For the decimal comma and the thousands separator: `de-DE`. */
+  locale?: string;
+  /** Load the authors' pictures from Google. See above before switching on. */
+  photos?: boolean;
+  /** Put on the root, so a site can style its own block. */
+  class?: string;
+}
+
+const { place, labels, locale = 'de-DE', photos = false, class: extra = '' } = Astro.props;
+
+const decimal = new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const whole = new Intl.NumberFormat(locale);
+const fill = (text: string, rating: number) =>
+  text.replace('{rating}', decimal.format(rating)).replace('{count}', whole.format(place.total)).replace('{name}', place.name);
+
+/** Share of the star row that is coloured. */
+const share = (rating: number) => `${Math.max(0, Math.min(5, rating)) * 20}%`;
+const initial = (name: string) => (name.trim()[0] ?? '?').toUpperCase();
+const STAR = 'M12 2.6l2.9 5.9 6.5.9-4.700 4.600 1.100 6.500L12 17.400l-5.800 3.100 1.100-6.500L2.600 9.400l6.500-.9z';
+---
+<div class:list={['gr', extra]}>
+  <div class="gr-summary">
+    <span class="gr-score">{decimal.format(place.rating)}</span>
+    <span class="gr-stars" role="img" aria-label={fill(labels.stars, place.rating)}>
+      <span class="gr-stars-row" aria-hidden="true">{[0, 1, 2, 3, 4].map(() => <svg viewBox="0 0 24 24"><path d={STAR} /></svg>)}</span>
+      <span class="gr-stars-row gr-stars-on" style={`width:${share(place.rating)}`} aria-hidden="true">{[0, 1, 2, 3, 4].map(() => <svg viewBox="0 0 24 24"><path d={STAR} /></svg>)}</span>
+    </span>
+    <a class="gr-count" href={place.url} target="_blank" rel="noopener">{fill(labels.count, place.rating)}</a>
+  </div>
+
+  {place.reviews.length > 0 && (
+    <ul class="gr-list">
+      {place.reviews.map((review) => (
+        <li class="gr-card">
+          <div class="gr-head">
+            {photos && review.authorPhoto
+              ? <img class="gr-face" src={review.authorPhoto} alt="" width="48" height="48" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+              : <span class="gr-face gr-initial" aria-hidden="true">{initial(review.author)}</span>}
+            <span class="gr-who">
+              <span class="gr-author">{review.author}</span>
+              <span class="gr-when">{review.relativeTime}</span>
+            </span>
+          </div>
+          <span class="gr-stars gr-stars-small" role="img" aria-label={fill(labels.stars, review.rating)}>
+            <span class="gr-stars-row" aria-hidden="true">{[0, 1, 2, 3, 4].map(() => <svg viewBox="0 0 24 24"><path d={STAR} /></svg>)}</span>
+            <span class="gr-stars-row gr-stars-on" style={`width:${share(review.rating)}`} aria-hidden="true">{[0, 1, 2, 3, 4].map(() => <svg viewBox="0 0 24 24"><path d={STAR} /></svg>)}</span>
+          </span>
+          <p class="gr-text">{review.text}</p>
+          {review.url && <a class="gr-more" href={review.url} target="_blank" rel="noopener">{labels.more}</a>}
+        </li>
+      ))}
+    </ul>
+  )}
+
+  <p class="gr-source">{labels.source}</p>
+</div>
+
+<!-- Global on purpose, like the gallery: everything is prefixed `gr-`. The
+     defaults sit in the `var()` fallbacks, not on `.gr`, so a site may set the
+     custom properties on `.gr` itself or on any wrapper around it. -->
+<style is:global>
+  .gr-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .5rem 1rem; }
+  .gr-score { font-size: 2.5em; font-weight: 700; line-height: 1; }
+  .gr-count { color: inherit; text-decoration: underline; text-underline-offset: .2em; }
+  .gr-count:hover { color: var(--gr-accent, #1a73e8); }
+
+  .gr-stars { position: relative; display: inline-block; line-height: 0; }
+  .gr-stars-row { display: flex; width: max-content; fill: var(--gr-star-off, rgb(0 0 0 / .14)); }
+  .gr-stars-row svg { width: 1.6em; height: 1.6em; flex: none; }
+  .gr-stars-on { position: absolute; inset: 0 auto 0 0; overflow: hidden; fill: var(--gr-star, #f5a623); }
+  .gr-stars-small .gr-stars-row svg { width: 1.15em; height: 1.15em; }
+
+  .gr-list {
+    list-style: none; margin: var(--gr-gap, 1.5rem) 0 0; padding: 0;
+    display: grid; gap: var(--gr-gap, 1.5rem);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--gr-card-min, 18rem)), 1fr));
+  }
+  .gr-card {
+    display: flex; flex-direction: column; align-items: flex-start; gap: .9rem;
+    padding: 1.5rem; border-radius: var(--gr-radius, 1rem);
+    background: var(--gr-card, #fff); border: var(--gr-card-border, 1px solid rgb(0 0 0 / .08)); box-shadow: var(--gr-card-shadow, none);
+    text-align: left;
+  }
+  .gr-head { display: flex; align-items: center; gap: .85rem; }
+  .gr-face { width: 3rem; height: 3rem; flex: none; border-radius: 50%; object-fit: cover; }
+  .gr-initial { display: grid; place-items: center; background: var(--gr-accent, #1a73e8); color: #fff; font-weight: 600; font-size: 1.2em; }
+  .gr-who { display: flex; flex-direction: column; line-height: 1.3; }
+  .gr-author { font-weight: 600; }
+  .gr-when { font-size: .875em; color: var(--gr-muted, rgb(0 0 0 / .6)); }
+  .gr-text {
+    margin: 0; white-space: pre-line;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--gr-lines, 7); line-clamp: var(--gr-lines, 7); overflow: hidden;
+  }
+  .gr-more { margin-top: auto; font-size: .9em; color: var(--gr-accent, #1a73e8); text-decoration: underline; text-underline-offset: .2em; }
+  .gr-source { margin: var(--gr-gap, 1.5rem) 0 0; text-align: center; font-size: .85em; color: var(--gr-muted, rgb(0 0 0 / .6)); }
+</style>

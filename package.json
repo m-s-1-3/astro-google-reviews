@@ -1,0 +1,30 @@
+{
+  "name": "@ms/astro-google-reviews",
+  "version": "1.0.0",
+  "description": "Google rating and reviews for Astro sites — one query, one component, for all of them.",
+  "type": "module",
+  "private": true,
+  "exports": {
+    "./Reviews.astro": "./src/Reviews.astro",
+    "./fetch": "./src/fetch.ts",
+    "./types": "./src/types.ts"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "tsx --test test/*.test.ts"
+  },
+  "peerDependencies": {
+    "astro": ">=4"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/m-s-1-3/astro-google-reviews.git"
+  }
+}
